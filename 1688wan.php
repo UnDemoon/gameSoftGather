@@ -14,7 +14,7 @@ $redis->connect('127.0.0.1', 6379);
 if( $argv[1] == 'clear' ){
     $redis->del("1688wan");                 //清空
     $redis->del('1688wan_navi');     //查看全部
-    // $set = $redis->smembers('zi7');     //查看全部
+    // $set = $redis->smembers('1688wan');     //查看全部
     // var_dump( $set );exit;
 }
 
@@ -34,7 +34,7 @@ getMax( $base_url, $redis, 20, $max );
  * @return [type]          [description]
  */
 function getCategory( $base_url, $redis, $second ){
-    //zi7
+    //1688wan
     $expire = $redis->get('1688wan_navi');
     if( !empty( $expire ) && time() < $expire ){
         var_dump('导航栏目跳过');
@@ -113,7 +113,7 @@ function getCategory( $base_url, $redis, $second ){
                     continue;
                 }
                 $category[] = [
-                    'source'    =>  'zi7',
+                    'source'    =>  '1688wan',
                     'name'      =>  $cate_name[$tk],
                     'url'       =>  $base_url.$tu
                 ];
@@ -148,12 +148,11 @@ function getCategory( $base_url, $redis, $second ){
  * @return [type]          [description]
  */
 function getGame( $base_url, $redis, $second=3 ){
-    //zi7
-    $url = $base_url."/game/danji/";
+    //1688wan
+    $url = $base_url."/game/type1_1.html";
     $html = requests::get($url);
-    // writelog($html);
     //页面列表  
-    $selector = '//div[contains(@class,"bd")]/ul/li/div/a/@href';
+    $selector = '//ul[contains(@class,"game-sear")]/li/a/@href';
     $games = selector::select($html, $selector);
     if( is_array( $games ) ){
         $n = count( $games );
@@ -187,7 +186,7 @@ function getGame( $base_url, $redis, $second=3 ){
             usleep($sp);
             continue;
         }
-        if( $redis->sismember( "zi7", $numeric ) ){
+        if( $redis->sismember( "1688wan", $numeric ) ){
             var_dump($numeric.'站点已经采集,跳过');
             usleep($sp);
             continue;
@@ -218,7 +217,7 @@ function getGame( $base_url, $redis, $second=3 ){
             $respone = json_decode($res, true);
             if( $respone['code'] === 0 ){
                 var_dump( $g.'采集完成' );
-                $redis->sadd('zi7', $numeric);
+                $redis->sadd('1688wan', $numeric);
             }else{
                 var_dump( $res );
             }
@@ -235,7 +234,7 @@ function getGame( $base_url, $redis, $second=3 ){
 
 //网游列表
 function getSoft( $base_url, $redis, $second=3 ){
-    //zi7
+    //1688wan
     $url = $base_url."/azrj/";
     $html = requests::get($url);
     //页面列表  
@@ -273,7 +272,7 @@ function getSoft( $base_url, $redis, $second=3 ){
             usleep($sp);
             continue;
         }
-        if( $redis->sismember( "zi7", $numeric ) ){
+        if( $redis->sismember( "1688wan", $numeric ) ){
             var_dump($numeric.'站点已经采集,跳过');
             usleep($sp);
             continue;
@@ -304,7 +303,7 @@ function getSoft( $base_url, $redis, $second=3 ){
             $respone = json_decode($res, true);
             if( $respone['code'] === 0 ){
                 var_dump( $g.'采集完成' );
-                $redis->sadd('zi7', $numeric);
+                $redis->sadd('1688wan', $numeric);
             }else{
                 var_dump( $res );
             }
@@ -329,7 +328,7 @@ function getMax( $base_url, $redis, $kill, $max ){
             $sp = rand(500000,2000000);
             $max++;
             $g = $base_url."/app/".$max.".html";
-            if( $redis->sismember( "zi7", $max ) ){
+            if( $redis->sismember( "1688wan", $max ) ){
                 var_dump($max.'站点已经采集,跳过');
                 usleep($sp);
                 continue;
@@ -353,7 +352,7 @@ function getMax( $base_url, $redis, $kill, $max ){
                 $data = [$token];
                 $res = sentData( $data );
                 var_dump( $max."采集完成" );
-                $redis->sadd('zi7', $max);
+                $redis->sadd('1688wan', $max);
             }else{
                 var_dump( $g."无下载地址或者数据获取失败" );
             }
@@ -364,24 +363,26 @@ function getMax( $base_url, $redis, $kill, $max ){
 
 
 function saveInfo( $contentHtml, $id='' ){
+    // writelog($contentHtml);
     $token = array();
     //标题
-    $selector = '//*[@class="appName"]/text()';
-    $token['title'] = selector::select($contentHtml, $selector);
+    $selector = '//*[@class="game_ibox"]/h1/text()';
+    $title = selector::select($contentHtml, $selector);
+    $token['title'] = substr($title, 0, strpos($title, 'v'));
     //版本号
-    $selector = '//*[@class="info"]/li[2]';
-    $token['version'] = str_replace( '版本：', '', selector::select($contentHtml, $selector) ) ;
+    $token['version'] = substr($title, strpos($title, 'v'), strlen($title));
     //logo
-    $selector = '//*/span[@class="imgBox"]/img';
-    $token['logo'] = 'http:'.selector::select($contentHtml, $selector);
+    $selector = '//*/div[@class="logo_box"]/img';
+    $token['logo'] = selector::select($contentHtml, $selector);
     //大小
-    $selector = '//*[@class="info"]/li[3]';
+    $selector = '//*[@class="game_ibox"]/ul/li[4]/em';
     $token['size'] = str_replace( '大小：', '', selector::select($contentHtml, $selector) );
     //类型
-    $selector = '//*[@class="info"]/li[1]';
+    $selector = '//*[@class="game_ibox"]/ul/li[1]/em/a';
     $token['softType'] = str_replace( '类型：', '', selector::select($contentHtml, $selector) );
+    
     //大类型
-    $selector = '//*[@class="w1200 loch mt20 mb10"]/span[2]/a';
+    $selector = '//*[@class="nav-position mt10 mb10"]/a[2]';
     $genre = selector::select($contentHtml, $selector);
     $token['navigation'] = $genre;
     if( $genre == '安卓游戏' ){
@@ -390,8 +391,8 @@ function saveInfo( $contentHtml, $id='' ){
         $token['genre'] = 3;
     }
     //更新时间
-    $selector = '//*[@class="info"]/li[6]';
-    $token['updateTime'] = trim( str_replace( '更新：', '', selector::select($contentHtml, $selector) ) );
+    $selector = '//*[@class="game_ibox"]/ul/li[2]/em';
+    $token['updateTime'] = trim( selector::select($contentHtml, $selector) );
     if( time() - strtotime( $token['updateTime'] ) > 604800 ){
         return false;
     }
@@ -404,9 +405,9 @@ function saveInfo( $contentHtml, $id='' ){
     //差评(ajax的)
     $token['poor'] = 0;
     //来源
-    $token['source'] = "zi7";
+    $token['source'] = "1688wan";
     //平台名称
-    $token['platform'] = 'zi7';
+    $token['platform'] = '1688玩';
     //语言
     $token['language'] = '';
     //seo关键字
@@ -414,10 +415,10 @@ function saveInfo( $contentHtml, $id='' ){
     $token['seoKey'] = mb_substr( selector::select($contentHtml, $selector), 0, 250);
     //seo标题
     $selector = '/html/head/title';
-    $token['seoName'] = str_replace( 'zi7手游网', '', selector::select($contentHtml, $selector) ) ;
+    $token['seoName'] = str_replace( '1688wan手游网', '', selector::select($contentHtml, $selector) ) ;
     //seo描述
     $selector = '/html/head/meta[3]/@content';
-    $token['seoDescription'] = str_replace( 'zi7手游网', '', mb_substr(selector::select($contentHtml, $selector), 0, 250) );
+    $token['seoDescription'] = str_replace( '1688wan手游网', '', mb_substr(selector::select($contentHtml, $selector), 0, 250) );
     $sheild = ['彩票','体彩','福彩','福利彩票','体育彩票','竞彩','vpn','网络加速','加速器','科学上网','翻墙','梯子'];
     foreach ($sheild as $v) {
         if( strstr($token['seoKey'], $v) ){
@@ -454,7 +455,7 @@ function saveInfo( $contentHtml, $id='' ){
     $selector = '//*[@class="artContent"]';
     $introduction = trim( strip_html_tags( 'h1', 'h1', selector::select($contentHtml, $selector) ) ); 
     $introduction = str_replace( '/>', ' />', $introduction );
-    $introduction = str_replace( ['ZI7下载站','zi7下载站'], '', $introduction );
+    $introduction = str_replace( ['ZI7下载站','1688wan下载站'], '', $introduction );
     preg_match_all( '/<img.*?src=[\"|\']?(.*?)[\"|\']?\s.*?>/i', $introduction, $matches );
     if( $matches[1] ){
         foreach ($matches[1] as $img) {
