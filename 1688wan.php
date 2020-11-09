@@ -18,7 +18,7 @@ if( $argv[1] == 'clear' ){
     // var_dump( $set );exit;
 }
 
-$base_url = "https://www.1688wan.com/";
+$base_url = "https://www.1688wan.com";
 fakeQuest($base_url);
 var_dump( '开始执行时间:'.date('Y-m-d H:i:s') );
 getCategory( $base_url, $redis, 3 );
@@ -147,10 +147,13 @@ function getCategory( $base_url, $redis, $second ){
  * @param  integer $kill  本次执行拉取多少条  0为无限制  拉到页面无法访问为止
  * @return [type]          [description]
  */
-function getGame( $base_url, $redis, $second=3 ){
+function getGame( $base_url, $redis, $second=3 ,$page_url="/game/type1_1.html"){
     //1688wan
-    $url = $base_url."/game/type1_1.html";
+    $url = $base_url.$page_url;
     $html = requests::get($url);
+    //  下一页url
+    $selector = '//*[@class="page-next"]/a/@href';
+    $next_pag = selector::select($html, $selector);
     //页面列表  
     $selector = '//ul[contains(@class,"game-sear")]/li/a/@href';
     $games = selector::select($html, $selector);
@@ -164,7 +167,7 @@ function getGame( $base_url, $redis, $second=3 ){
             $second--;
             var_dump('游戏列表获取失败,再来');
             sleep(4);
-            getGame( $base_url, $redis, $second );
+            getGame( $base_url, $redis, $second, $page_url);
             return;
         }
     }else{
@@ -228,6 +231,9 @@ function getGame( $base_url, $redis, $second=3 ){
     }
 
     var_dump( date('Y-m-d H:i:s')." 游戏列表提交完成" );
+    if ($next_pag) {
+       $max = getGame( $base_url, $redis, $second, $next_pag);
+    }
     return $max;
     
 } 
@@ -327,7 +333,7 @@ function getMax( $base_url, $redis, $kill, $max ){
         while ( true ) {
             $sp = rand(500000,2000000);
             $max++;
-            $g = $base_url."/app/".$max.".html";
+            $g = $base_url."/game/danji/".$max.".html";
             if( $redis->sismember( "1688wan", $max ) ){
                 var_dump($max.'站点已经采集,跳过');
                 usleep($sp);
