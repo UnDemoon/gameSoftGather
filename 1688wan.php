@@ -1,6 +1,6 @@
 <?php
-ini_set("display_errors","On");
-error_reporting(E_ALL); 
+// ini_set("display_errors","On");
+// error_reporting(E_ALL); 
 require './vendor/autoload.php';
 require 'curl.php';
 require 'mytools.php';
@@ -24,6 +24,7 @@ var_dump( '开始执行时间:'.date('Y-m-d H:i:s') );
 getCategory( $base_url, $redis, 3 );
 $gameMax = getGame( $base_url, $redis, 3 );
 $softMax = getSoft( $base_url, $redis, 3 );
+$newsMax = getNews( $base_url, $redis );
 $max = $gameMax > $softMax ? $softMax : $softMax;
 getMax( $base_url, $redis, 20, $max );
 
@@ -63,70 +64,94 @@ function getCategory( $base_url, $redis, $second ){
     }else{
         $navi = [$navi];
     }
-    //二级目录
-    $selector = '//*[@id="nav"]/li/ul/li/a/@href';
-    $child_url = selector::select($html, $selector);
-    $selector = '//*[@id="nav"]/li/ul/li/a';
-    $child_name = selector::select($html, $selector);
-    if( is_string($child_url) ){
-        $child_url = [$child_url];
-        $child_name = [$child_name];
-    }elseif ( empty( $child_url ) ) {
-        $child_url = [];
-        $child_name = [];
-    }
     $navigation = [];
-    foreach ($urls as $k=>$g) {
-        if( $k == 0 ){
-            //首页跳过
-            continue;
+    foreach ($navi as $v) {
+        $navigation [] = [
+            'name' => $v,
+            'source' => '1688wan',
+            'url' => '',
+            'cate' => [],
+        ];
+    }
+
+    #   游戏
+    $navigation[2]['url'] = "https://www.1688wan.com/game/type1_1.html";
+    #   软件
+    $navigation[3]['url'] = "https://www.1688wan.com/app/list_1.html";
+    #   咨询
+    $navigation[4]['url'] = "https://www.1688wan.com/news/";
+
+    //二级目录
+        $html = requests::get($navigation[2]['url']);
+        $selector = '//*[@class="sear-bar f-bg"]/div/dd[position()>1]/a';
+        $child_name = selector::select($html, $selector);
+        $selector = '//*[@class="sear-bar f-bg"]/div/dd[position()>1]/a/@href';
+        $child_url = selector::select($html, $selector);
+        if( is_string($child_url) ){
+            $child_url = [$child_url];
+            $child_name = [$child_name];
+        }elseif ( empty( $child_url ) ) {
+            $child_url = [];
+            $child_name = [];
         }
-        sleep(4);
-        var_dump('获取导航 '.$navi[$k]);
         $category = [];
         foreach( $child_url as $ck=>$cu ){
-            if( stripos( $cu, $g ) === 0 ){
                 $category[] = [
                     'source'    =>  '1688wan',
                     'name'      =>  $child_name[$ck],
                     'url'       =>  $base_url.$cu 
                 ];
-            }
         }
-        if( empty( $category ) ){
-            //去页面获取
-            $url = $base_url.$g;
-            $html = requests::get($url);
-            $selector = '//*[@id="app"]/li/a/@href';
-            $cate_url = selector::select($html, $selector);
-            $selector = '//*[@id="app"]/li/a';
-            $cate_name = selector::select($html, $selector);
-            if( is_string( $cate_url ) ){
-                $cate_url = [$cate_url];
-                $cate_name = [$cate_name];
-            }elseif ( empty( $cate_url ) ) {
-                $cate_url = [];
-                $cate_name = [];
-            }
-            foreach ($cate_url as $tk => $tu) {
-                if( $tk == 0 ){
-                    continue;
-                }
+        $navigation[2]['cate'] = $category;
+        #   网游、单机就是找游戏
+        $navigation[0]['cate'] = $category;
+        $navigation[1]['cate'] = $category;
+
+        $html = requests::get($navigation[3]['url']);
+        $selector = '//*[@class="sear-bar f-bg"]/div/dd[position()>1]/a';
+        $child_name = selector::select($html, $selector);
+        $selector = '//*[@class="sear-bar f-bg"]/div/dd[position()>1]/a/@href';
+        $child_url = selector::select($html, $selector);
+        if( is_string($child_url) ){
+            $child_url = [$child_url];
+            $child_name = [$child_name];
+        }elseif ( empty( $child_url ) ) {
+            $child_url = [];
+            $child_name = [];
+        }
+        $category = [];
+        foreach( $child_url as $ck=>$cu ){
                 $category[] = [
                     'source'    =>  '1688wan',
-                    'name'      =>  $cate_name[$tk],
-                    'url'       =>  $base_url.$tu
+                    'name'      =>  $child_name[$ck],
+                    'url'       =>  $base_url.$cu 
                 ];
-            }
         }
-        //导航
-        $navigation[] = [
-            'name'      =>  $navi[$k],
-            'url'       =>  $base_url.$g,
-            'source'    =>  '1688wan',
-            'cate'      =>  $category
-        ];  
-    }
+        $navigation[3]['cate'] = $category;
+
+
+        $html = requests::get($navigation[4]['url']);
+        $selector = '//*[@class="side-class"]/li[position()>1]/a';
+        $child_name = selector::select($html, $selector);
+        $selector = '//*[@class="side-class"]/li[position()>1]/a/@href';
+        $child_url = selector::select($html, $selector);
+        if( is_string($child_url) ){
+            $child_url = [$child_url];
+            $child_name = [$child_name];
+        }elseif ( empty( $child_url ) ) {
+            $child_url = [];
+            $child_name = [];
+        }
+        $category = [];
+        foreach( $child_url as $ck=>$cu ){
+                $category[] = [
+                    'source'    =>  '1688wan',
+                    'name'      =>  $child_name[$ck],
+                    'url'       =>  $base_url.$cu 
+                ];
+        }
+        $navigation[4]['cate'] = $category;
+
     $res = sentNavi( $navigation );
     $respone = json_decode($res, true);
     if( $respone['code'] === 0 ){
@@ -239,12 +264,15 @@ function getGame( $base_url, $redis, $second=3 ,$page_url="/game/type1_1.html"){
 } 
 
 //网游列表
-function getSoft( $base_url, $redis, $second=3 ){
+function getSoft( $base_url, $redis, $second=3 ,$page_url="/app/list_1.html"){
     //1688wan
-    $url = $base_url."/azrj/";
+    $url = $base_url.$page_url;
     $html = requests::get($url);
+    //  下一页url
+    $selector = '//*[@class="page-next"]/a/@href';
+    $next_pag = selector::select($html, $selector);
     //页面列表  
-    $selector = '//*[@class="tablist"][1]/ul/li[position()<=4]/div/a[1]/@href';
+    $selector = '//ul[contains(@class,"game-sear")]/li/a/@href';
     $softs = selector::select($html, $selector);
     if( is_array( $softs ) ){
         $n = count( $softs );
@@ -256,7 +284,7 @@ function getSoft( $base_url, $redis, $second=3 ){
             $second--;
             var_dump('游戏列表获取失败,再来');
             sleep(4);
-            getSoft( $base_url, $redis, $second );
+            getSoft( $base_url, $redis, $second,  $page_url);
             return;
         }
     }else{
@@ -320,6 +348,9 @@ function getSoft( $base_url, $redis, $second=3 ){
     }
 
     var_dump( date('Y-m-d H:i:s')." 软件列表提交完成" );
+    if ($next_pag) {
+       $max = getSoft( $base_url, $redis, $second, $next_pag);
+    }
     return $max;
 }
 
@@ -390,12 +421,19 @@ function saveInfo( $contentHtml, $id='' ){
     //大类型
     $selector = '//*[@class="nav-position mt10 mb10"]/a[2]';
     $genre = selector::select($contentHtml, $selector);
-    $token['navigation'] = $genre;
-    if( $genre == '安卓游戏' ){
-        $token['genre'] = 1;
-    }else{
+    if ($genre == '游戏') {
+         $genre = "找游戏/".$token['softType'];
+         $token['genre'] = 1;
+    }elseif ($genre == '安卓软件') {
+        $genre = "软件/".$token['softType'];
         $token['genre'] = 3;
     }
+    $token['navigation'] = $genre;
+    // if( $genre == '安卓游戏' ){
+    //     $token['genre'] = 1;
+    // }else{
+    //     $token['genre'] = 3;
+    // }
     //更新时间
     $selector = '//*[@class="game_ibox"]/ul/li[2]/em';
     $token['updateTime'] = trim( selector::select($contentHtml, $selector) );
@@ -441,16 +479,16 @@ function saveInfo( $contentHtml, $id='' ){
         }
     }
     //图片
-    $selector = '//*[@class="sjImgTab"]/ul/li/img';
+    $selector = '//*[@id="textcon"]/p/img';
     $pics = selector::select($contentHtml, $selector);
     if( is_array( $pics ) ){
         $doll = '';
         foreach( $pics as &$ps ){
-            $doll .= 'http:'.$ps.',';
+            $doll .= $ps.',';
         }
         $token['imgs'] = rtrim( $doll, ',' );
     }elseif ( is_string( $pics ) ) {
-        $token['imgs'] = 'http:'.$pics;
+        $token['imgs'] = $pics;
     }else{
         $token['imgs'] = '';
     }
@@ -458,10 +496,10 @@ function saveInfo( $contentHtml, $id='' ){
     $token['tags'] = '';
     
     //介绍
-    $selector = '//*[@class="artContent"]';
+    $selector = '//*[@id="textcon"]';
     $introduction = trim( strip_html_tags( 'h1', 'h1', selector::select($contentHtml, $selector) ) ); 
     $introduction = str_replace( '/>', ' />', $introduction );
-    $introduction = str_replace( ['ZI7下载站','1688wan下载站'], '', $introduction );
+    // $introduction = str_replace( ['ZI7下载站','1688wan下载站'], '', $introduction );
     preg_match_all( '/<img.*?src=[\"|\']?(.*?)[\"|\']?\s.*?>/i', $introduction, $matches );
     if( $matches[1] ){
         foreach ($matches[1] as $img) {
@@ -475,9 +513,130 @@ function saveInfo( $contentHtml, $id='' ){
     //应用平台
     $token['application'] = 'android';
     $token['downloads'] = '';
+    // print_r($token);
+    // exit();
     return $token;
 }
 
+
+function getNews( $base_url, $redis, $limit=0, $kill=100, $page_url="/webnews/300_1.html"){
+    $url = $base_url.$page_url;
+    $html = requests::get($url);
+    //  下一页url
+    $selector = '//*[@class="page-next"]/a/@href';
+    $next_pag = selector::select($html, $selector);
+    //页面列表
+    $selector = '//*[@class="l-content l"]/ul/li/div/div/a[1]/@href';
+    $infos = selector::select($html, $selector);
+    if( is_array( $infos ) ){
+        $n = count( $infos );
+    }elseif ( empty( $infos ) ) {
+        var_dump('没有消息列表,请确认页面');
+        return;
+    }else{
+        $infos = [$infos];
+    }
+    $data = [];
+    foreach ($infos as $g) {
+        $sleep = rand(2000000,8000000);
+        var_dump( $g."执行开始" );
+        preg_match('/\d+/',$g, $site);
+        if( is_numeric( $site[0] ) ){
+            $numeric = $site[0];
+        }else{
+            var_dump( $g."页面参数异常" );
+            usleep($sleep);
+            continue;
+        }
+        if( $redis->sismember( "1688wan_news", $numeric ) ){
+            var_dump($numeric.'站点已经采集,跳过');
+            usleep($sleep);
+            continue;
+        }
+        $html = requests::get($base_url.$g);
+        $selector = '/html/head/title';
+        $title = selector::select($html, $selector);
+        if( stripos($title, '404') !== false ){
+            var_dump( $g."页面404,跳过" );
+            usleep($sleep);
+            continue;
+        }
+        $token = saveNews( $html );
+        if( $token ){
+            //源地址
+            $token['links'] = $base_url.$g;
+            $data = [$token];
+            $res = sentNews( $data );
+            $respone = json_decode($res, true);
+            if( $respone['code'] === 0 ){
+                var_dump( $g."数据发送完毕" );
+                $redis->sadd('1688wan_news', $numeric);
+            }else{
+                var_dump( $res );
+            }
+        }else{
+            var_dump( $g."无下载地址或者数据获取失败" );
+        }
+        usleep($sleep);
+    }
+}
+
+function saveNews( $contentHtml ){
+    $token = array();
+    //标题
+    $selector = '//*[@class="news-tit-con dis-tb mb20"]/div/h1';
+    $token['title'] = selector::select($contentHtml, $selector);
+    //介绍
+    $selector = '//*[@id="wz-content"]';
+    $content = strip_html_tags( 'p class="dvideo"', 'p', selector::select($contentHtml, $selector) ); 
+    $content = htmlspecialchars_decode($content);
+    $content = preg_replace("/<a[^>]*>(.*?)<\/a>/is", "$1", $content);
+    $token['content'] = trim( $content );
+    //logo
+    //使用content的第一张图
+    $token['content'] = str_replace( '/>', ' />', $token['content'] );
+    preg_match_all( '/<img.*?src=[\"|\']?(.*?)[\"|\']?\s.*?>/i', $token['content'], $matches );
+    if( $matches[1] ){
+        $token['logo'] = 'http:'.$matches[1][0];
+        foreach ($matches[1] as $img) {
+            if( stripos( $img, 'http' ) !== 0 ){
+                $token['content'] = str_replace( $img, 'http:'.$img, $token['content'] );
+            }
+            
+        }
+    }else{
+        $token['logo'] = '';
+    }
+    //类型
+    $selector = '//*[@class="nav-position mb10"]/a[3]';
+    $token['category'] = selector::select($contentHtml, $selector);
+    //导航
+    // $selector = '//*[@class="nav-position mb10"]/a[2]';
+    // $token['navigation'] = selector::select($contentHtml, $selector);
+    $token['navigation'] = "看资讯/".$token['category']; 
+    // //更新时间
+    $selector = '//*[@class="art-info mt10 mb10"]/text()';
+    $temp = selector::select($contentHtml, $selector);
+    if (is_array($temp)) {
+        $temp = $temp[0];
+    }
+    $temp = str_replace( '编辑：', '', str_replace( '时间：', '', $temp ));
+    $token['updateTime'] = trim($temp);
+    //来源
+    $token['source'] = "1688wan";
+    //平台名称
+    $token['platform'] = '1688玩';
+    //seo关键字
+    $selector = '/html/head/meta[2]/@content';
+    $token['seoKey'] = mb_substr( selector::select($contentHtml, $selector), 0, 250);
+    //seo标题
+    $selector = '/html/head/title';
+    $token['seoName'] = str_replace( 'zi7手游网', '', selector::select($contentHtml, $selector) ) ;
+    //seo描述
+    $selector = '/html/head/meta[3]/@content';
+    $token['seoDescription'] = str_replace( 'zi7手游网', '', mb_substr(selector::select($contentHtml, $selector), 0, 250) );
+    return $token;
+}
 
 function fakeQuest( $base_url, $proxy='' ){
     requests::set_useragent(array(
