@@ -3,7 +3,7 @@
 // error_reporting(E_ALL); 
 require './vendor/autoload.php';
 require 'curl.php';
-require 'mytools.php';
+// require 'mytools.php';
 use phpspider\core\phpspider;
 use phpspider\core\requests;
 use phpspider\core\selector;
