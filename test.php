@@ -6,6 +6,9 @@ use phpspider\core\requests;
 use phpspider\core\selector;
 
 
+echo phpinfo();
+exit;
+
 // $url = "https://www.hackhome.com/XiaZai/SoftView_734613.html";
 $url = "http://www.k73.com/down/android/471786.html";
 $html = requests::get($url);
