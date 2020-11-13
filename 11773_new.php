@@ -1,7 +1,7 @@
 <?php
 require './vendor/autoload.php';
 require 'curl.php';
-require 'mytools.php';
+// require 'mytools.php';
 use phpspider\core\phpspider;
 use phpspider\core\requests;
 use phpspider\core\selector;
@@ -415,7 +415,9 @@ function saveInfo( $contentHtml, $id='', $type='1' ){    # type 1游戏 2软件
         $token['imgs'] = '';
     }
     //标签
-    $token['tags'] = '';
+    $selector = '//*[@class="newifcens"]/ul/li[3]/div/a/text()';
+    $tags = selector::select($contentHtml, $selector);
+    $token['tags'] = is_array($tags) ? implode(',',$tags) : $tags;
     
     //介绍
     $selector = '//*[@class="newlafcen"]';
