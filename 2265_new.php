@@ -9,18 +9,17 @@ use phpspider\core\selector;
 $redis = new Redis();
 $redis->connect('127.0.0.1', 6379);
 if( $argv[1] == 'clear' ){
-    $redis->del("11773");                 //清空
-    $redis->del('11773_navi');     //查看全部
-    // $set = $redis->smembers('11773');     //查看全部
+    $redis->del("2265");                 //清空
+    $redis->del('2265_navi');     //查看全部
+    // $set = $redis->smembers('2265');     //查看全部
     // var_dump( $set );exit;
 }
 $newNav = [];
-$base_url = "https://www.11773.com";
+$base_url = "http://www.2265.com";
 fakeQuest($base_url);
 var_dump( '开始执行时间:'.date('Y-m-d H:i:s') );
 getCategory( $base_url, $redis, 3 );
-$gameMax = getGame( $base_url, $redis, 3 );
-$softMax = getSoft( $base_url, $redis, 3 );
+$gameMax = getGameSoft( $base_url, $redis, 3 );
 $newsMax = getNews( $base_url, $redis );
 
 /**
@@ -30,10 +29,8 @@ $newsMax = getNews( $base_url, $redis );
  * @return [type]          [description]
  */
 function getCategory( $base_url, $redis, $second ){
-    // ini_set("display_errors","On");
-    // error_reporting(E_ALL); 
-    //11773
-    $expire = $redis->get('11773_navi');
+    //2265
+    $expire = $redis->get('2265_navi');
     if( !empty( $expire ) && time() < $expire ){
         var_dump('导航栏目跳过');
         return;
@@ -41,9 +38,9 @@ function getCategory( $base_url, $redis, $second ){
     $url = $base_url;
     $html = requests::get($url);
     //页面列表  
-    $selector = '//*[@class="newnavitems"]/ul/li/a';
+    $selector = '//*[@id="header"]/dd/p/a';
     $navi = selector::select($html, $selector);
-    $selector = '//*[@class="newnavitems"]/ul/li/a/@href';
+    $selector = '//*[@id="header"]/dd/p/a/@href';
     $urls = selector::select($html, $selector);
     if( is_array( $navi ) ){
         $n = count( $navi );
@@ -61,107 +58,125 @@ function getCategory( $base_url, $redis, $second ){
     }else{
         $navi = [$navi];
     }
+
+
     $navigation = [];
     foreach ($navi as $k => $v) {
         $navigation [] = [
             'name' => $v,
-            'source' => '11773',
-            'url' => $urls[$k],
+            'source' => '2265',
+            'url' => '',
             'cate' => [],
         ];
     }
 
+    #   安卓软件
+    $navigation[1]['url'] = '/soft/r_90_1.html';
+    #   安卓网游
+    $navigation[2]['url'] = '/game/r_89_1.html';
+    #   安卓单机
+    $navigation[3]['url'] = '/game/r_288_1.html';
+
     $category = [];
     #   循环导航 查找二级菜单 循环顺序必须为正序0~N
     foreach ($navigation as $idx => $nav) {
-        # 二级目录
-        if ($idx == 0 || $idx == 3) {
-            $category = [];
-            // 游戏库  软件
-            $html = requests::get($base_url.$nav['url']);
-            $selector = '//*[@class="newmnblt"]/a[position()>1]/text()';
-            $child_name = selector::select($html, $selector);
-            $selector = '//*[@class="newmnblt"]/a[position()>1]/@href';
-            $child_url = selector::select($html, $selector);
-            if( is_string($child_url) ){
-                $child_url = [$child_url];
-                $child_name = [$child_name];
-            }elseif ( empty( $child_url ) ) {
-                $child_url = [];
-                $child_name = [];
-            }
-            foreach( $child_url as $ck=>$cu ){
-                    $category[] = [
-                        'source'    =>  '11773',
-                        'name'      =>  $child_name[$ck],
-                        'url'       =>  $base_url.$cu 
-                    ];
-            }
-            $navigation[$idx]['cate'] = $category;
-        }elseif ($idx == 1 || $idx == 2) {
-            # 网游、单机
-            $navigation[$idx]['cate'] = $category;
-        }elseif ($idx == 4) {
-            $category = [];
-            # 资讯
-            $html = requests::get($base_url.$nav['url']);
-            $selector = '//*[@class="newmnbtp"]/a/text()';
-            $child_name = selector::select($html, $selector);
-            $selector = '//*[@class="newmnbtp"]/a/@href';
-            $child_url = selector::select($html, $selector);
-            if( is_string($child_url) ){
-                $child_url = [$child_url];
-                $child_name = [$child_name];
-            }elseif ( empty( $child_url ) ) {
-                $child_url = [];
-                $child_name = [];
-            }
-            foreach( $child_url as $ck=>$cu ){
-                    $category[] = [
-                        'source'    =>  '11773',
-                        'name'      =>  $child_name[$ck],
-                        'url'       =>  $base_url.$cu 
-                    ];
-            }
-            $navigation[$idx]['cate'] = $category;
-            $redis->set('11773_news_nav', json_encode($category));
-        }elseif ($idx > 4) {
-            # 其他导航统一按资讯
-            # 不补充了
-            // $navigation[$idx]['cate'] = $category;
+        #   空地址跳过
+        if (empty($nav['url'])) {
+            continue;
         }
-
+        $html = requests::get($base_url.$nav['url']);
+        $selector = '//*[@class="clearfix"]/a[position()>1]/text()';
+        $child_name = selector::select($html, $selector);
+        $selector = '//*[@class="clearfix"]/a[position()>1]/@href';
+        $child_url = selector::select($html, $selector);
+        if( is_string($child_url) ){
+            $child_url = [$child_url];
+            $child_name = [$child_name];
+        }elseif ( empty( $child_url ) ) {
+            $child_url = [];
+            $child_name = [];
+        }
+        foreach( $child_url as $ck=>$cu ){
+                $category[] = [
+                    'source'    =>  '2265',
+                    'name'      =>  $child_name[$ck],
+                    'url'       =>  $base_url.$cu 
+                ];
+        }
+        $navigation[$idx]['cate'] = $category;
+        $navigation[$idx]['url'] = $nav['url'];
     }
 
+    $navigation[4]['cate'] = [
+            [
+                    'source'    =>  '2265',
+                    'name'      =>  '新闻',
+                    'url'       =>  'http://www.2265.com/article/s_302_1.html'
+                ],[
+                    'source'    =>  '2265',
+                    'name'      =>  '攻略',
+                    'url'       =>  'http://www.2265.com/article/s_303_1.html'
+                ],[
+                    'source'    =>  '2265',
+                    'name'      =>  '教程',
+                    'url'       =>  'http://www.2265.com/article/s_304_1.html'
+                ],[
+                    'source'    =>  '2265',
+                    'name'      =>  '测评',
+                    'url'       =>  'http://www.2265.com/article/s_305_1.html'
+                ],
+    ];
+
+
     $res = sentNavi( $navigation );
+    #   缓存一下新闻栏目
+    $redis->set('2265_news_nav', json_encode($navigation[4]['cate']));
     $respone = json_decode($res, true);
     if( $respone['code'] === 0 ){
         var_dump( '导航采集完成' );
-        $redis->set('11773_navi', time()+86400*30);
+        $redis->set('2265_navi', time()+86400*30);
     }else{
         var_dump( $res );
     }
     return;
-} 
+}
 
 
 /**
- * 安卓游戏
+ * 获取游戏和软件列表
+ */
+
+function getGameSoft( $base_url, $redis, $second=3){
+    #   url数组
+    $urls = [
+        '/soft/r_90_1.html',  // 安卓软件
+        '/game/r_89_1.html',  // 安卓网游
+        '/game/r_288_1.html', // 安卓单机
+    ];
+    foreach ($urls as $url) {
+        getOnePage( $base_url, $redis, $second ,$url);
+    }
+}
+
+
+/**
+ * 获取单页
  * @param  string  $redis  redis对象
  * @param  string  $base_url  基础地址
  * @param  integer $second 失败重试次数次
  * @param  integer $kill  本次执行拉取多少条  0为无限制  拉到页面无法访问为止
  * @return [type]          [description]
  */
-function getGame( $base_url, $redis, $second=3 ,$page_url="/youxi/"){
-    //11773
+function getOnePage( $base_url, $redis, $second=3 ,$page_url=""){
+    //2265
     $url = $base_url.$page_url;
     $html = requests::get($url);
     //  下一页url
-    $selector = '//*[@class="page"]/a[last()-1]/@href';
+    $selector = '//*[@class="tsp_next"]/@href';
     $next_pag = selector::select($html, $selector);
+
     //页面列表  
-    $selector = '//*[@class="newlistwp"]/ul/li/a/@href';
+    $selector = '//*[@id="listCont"]/dd/p/a[1]/@href';
     $games = selector::select($html, $selector);
     if( is_array( $games ) ){
         $n = count( $games );
@@ -180,13 +195,14 @@ function getGame( $base_url, $redis, $second=3 ,$page_url="/youxi/"){
         $n = 1;
         $games = [$games];
     }
+
     $max = 0;
     foreach ($games as $g) {
         $sp = rand(4000000,10000000);
         var_dump( $g."执行开始" );
         $numeric = explode('/', $g)[2];   // /game/cyshcryx5/ 拆分取 cyshcryx5
 
-        if( $redis->sismember( "11773", $numeric ) ){
+        if( $redis->sismember( "2265", $numeric ) ){
             var_dump($numeric.'站点已经采集,跳过');
             usleep($sp);
             continue;
@@ -217,7 +233,7 @@ function getGame( $base_url, $redis, $second=3 ,$page_url="/youxi/"){
             $respone = json_decode($res, true);
             if( $respone['code'] === 0 ){
                 var_dump( $g.'采集完成' );
-                $redis->sadd('11773', $numeric);
+                $redis->sadd('2265', $numeric);
             }else{
                 var_dump( $res );
             }
@@ -235,130 +251,43 @@ function getGame( $base_url, $redis, $second=3 ,$page_url="/youxi/"){
     
 } 
 
-//网游列表
-function getSoft( $base_url, $redis, $second=3 ,$page_url="/soft/"){
-
-    //11773
-    $url = $base_url.$page_url;
-    $html = requests::get($url);
-    //  下一页url
-    $selector = '//*[@class="page"]/a[last()-1]/@href';
-    $next_pag = selector::select($html, $selector);
-    //页面列表  
-    $selector = '//*[@class="newlistwp"]/ul/li/a/@href';
-    $softs = selector::select($html, $selector);
-    if( is_array( $softs ) ){
-        $n = count( $softs );
-    }elseif ( empty( $softs ) ) {
-        if( $second <= 0 ){
-            var_dump($second.'次没有游戏列表,停止获取');
-            return;
-        }else{
-            $second--;
-            var_dump('游戏列表获取失败,再来');
-            sleep(4);
-            getGame( $base_url, $redis, $second, $page_url);
-            return;
-        }
-    }else{
-        $n = 1;
-        $softs = [$softs];
-    }
-    $max = 0;
-    foreach ($softs as $g) {
-        $sp = rand(4000000,10000000);
-        var_dump( $g."执行开始" );
-        $numeric = explode('/', $g)[2];   // /game/cyshcryx5/ 拆分取 cyshcryx5
-        if( $redis->sismember( "11773", $numeric ) ){
-            var_dump($numeric.'站点已经采集,跳过');
-            usleep($sp);
-            continue;
-        }
-        $html = requests::get($base_url.$g);
-        for ($r=0; $r < 2; $r++) { 
-            if( empty($html) ){
-                var_dump($numeric.'站点数据为空,再来');
-                usleep($sp);
-                $html = requests::get($base_url.$g);
-            }else{
-                break;
-            }
-        }
-
-        $selector = '/html/head/title';
-        $title = selector::select($html, $selector);
-        if( stripos($title, '404') !== false ){
-            var_dump( $g."页面404,跳过" );
-            continue;
-        }
-        $token = saveInfo( $html, $numeric, 2 );
-        if( $token ){
-            //源地址
-            $token['links'] = $base_url.$g;
-            $data = [$token];
-            $res = sentData( $data );
-            $respone = json_decode($res, true);
-            if( $respone['code'] === 0 ){
-                var_dump( $g.'采集完成' );
-                $redis->sadd('11773', $numeric);
-            }else{
-                var_dump( $res );
-            }
-        }else{
-            var_dump( $g."数据获取失败" );
-        }
-        usleep($sp);
-    }
-
-    var_dump( date('Y-m-d H:i:s')." 软件列表提交完成" );
-    if ($next_pag) {
-       $max = getSoft( $base_url, $redis, $second, $next_pag);
-    }
-    return $max;
-}
-
 
 function saveInfo( $contentHtml, $id='', $type='1' ){    # type 1游戏 2软件
     $token = array();
     //标题
-    $selector = '//*[@class="newinfol"]/div/h1/text()';
+    $selector = '//*[@id="dinfo"]/h1[1]/text()';
     $token['title'] = selector::select($contentHtml, $selector);
     //版本号
-    $selector = '//*[@class="newifcens"]/ul/li[1]/p[2]';
-    $token['version'] = selector::select($contentHtml, $selector);
+    $selector = '//*[@id="dinfo"]//i[@class="softver"]';
+    $version = selector::select($contentHtml, $selector);
+    $version = str_replace( '版本：', '', $version);
+    $token['version'] = str_replace( ' 安卓版', '', $version);
     //logo
-    $selector = '//*/div[@class="newinfol"]/div[@class="info"]/div[@class="img"]/img';
+    $selector = '//*[@id="dico"]/img';
     $token['logo'] = selector::select($contentHtml, $selector);
     //大小
-    $selector = '//*[@class="newifcens"]/ul/li[1]/p[3]';
+    $selector = '//*[@id="dinfo"]//*[@class="base"]/i[3]';
     $token['size'] = str_replace( '大小：', '', selector::select($contentHtml, $selector) );
     //类型
-    $selector = '//*[@class="newifcens"]/ul/li[1]/p[1]/a/text()';
-    $token['softType'] = str_replace( '类型：', '', selector::select($contentHtml, $selector) );
+    $selector = '//*[@id="dinfo"]//*[@class="base"]/i[1]';
+    $softType = str_replace( '类型：', '', selector::select($contentHtml, $selector) );
+    $token['softType'] = explode(' ', $softType)[1];
     
     //大类型
-    $selector = '//*[@class="newnavwz newwidths"]/a[2]';
+    $selector = '//*[@id="fast-nav"]/a[2]';
     $genre = selector::select($contentHtml, $selector);
-    if ($genre == '游戏') {
-         $genre = "游戏库/".$token['softType'];
-         $token['genre'] = 1;
-    }elseif ($genre == '软件') {
-        $genre = "软件/".$token['softType'];
-        $token['genre'] = 3;
-    }
-    $token['navigation'] = $genre;
-    // if( $genre == '安卓游戏' ){
-    //     $token['genre'] = 1;
-    // }else{
-    //     $token['genre'] = 3;
-    // }
-    //更新时间
-    if ($type == 1) {
-        $selector = '//*[@class="newifcens"]/ul/li[2]/p[last()]';
+    if ($genre == '安卓软件') {
+         $token['genre'] = 3;
+    }elseif ($genre == '安卓单机') {
+        $token['genre'] = 2;
     }else{
-        $selector = '//*[@class="newifcens"]/ul/li[2]/p[2]';
+        $token['genre'] = 1;
     }
-    $token['updateTime'] = trim( selector::select($contentHtml, $selector) );
+    $token['navigation'] = $genre."/".$token['softType'];
+    //更新时间
+    $selector = '//*[@id="dinfo"]//*[@class="base"]/i[4]';
+    $token['updateTime'] = str_replace( '更新：', '', selector::select($contentHtml, $selector) );
+
     if( time() - strtotime( $token['updateTime'] ) > 604800 ){
         return false;
     }
@@ -371,20 +300,20 @@ function saveInfo( $contentHtml, $id='', $type='1' ){    # type 1游戏 2软件
     //差评(ajax的)
     $token['poor'] = 0;
     //来源
-    $token['source'] = "11773";
+    $token['source'] = "2265";
     //平台名称
-    $token['platform'] = '11773手游网';
+    $token['platform'] = '2265安卓网';
     //语言
     $token['language'] = '';
     //seo关键字
-    $selector = '/html/head/meta[2]/@content';
-    $token['seoKey'] = mb_substr( selector::select($contentHtml, $selector), 0, 250);
+    $selector = '//meta[@name="keywords"]/@content';
+    $token['seoKey'] = selector::select($contentHtml, $selector);
     //seo标题
     $selector = '/html/head/title';
-    $token['seoName'] = str_replace( '11773手游网', '', selector::select($contentHtml, $selector) ) ;
+    $token['seoName'] = str_replace( '2265安卓网', '', selector::select($contentHtml, $selector) ) ;
     //seo描述
-    $selector = '/html/head/meta[3]/@content';
-    $token['seoDescription'] = str_replace( '11773手游网', '', mb_substr(selector::select($contentHtml, $selector), 0, 250) );
+    $selector = '//meta[@name="description"]/@content';
+    $token['seoDescription'] = str_replace( '2265安卓网', '', mb_substr(selector::select($contentHtml, $selector), 0, 250) );
     $sheild = ['彩票','体彩','福彩','福利彩票','体育彩票','竞彩','vpn','网络加速','加速器','科学上网','翻墙','梯子'];
     foreach ($sheild as $v) {
         if( strstr($token['seoKey'], $v) ){
@@ -401,7 +330,7 @@ function saveInfo( $contentHtml, $id='', $type='1' ){    # type 1游戏 2软件
         }
     }
     //图片
-    $selector = '//*[@class="snapShotCont"]/li/img';
+    $selector = '//*[@id="focus"]//img';
     $pics = selector::select($contentHtml, $selector);
     if( is_array( $pics ) ){
         $doll = '';
@@ -415,15 +344,15 @@ function saveInfo( $contentHtml, $id='', $type='1' ){    # type 1游戏 2软件
         $token['imgs'] = '';
     }
     //标签
-    $selector = '//*[@class="newifcens"]/ul/li[3]/div/a/text()';
-    $tags = selector::select($contentHtml, $selector);
-    $token['tags'] = is_array($tags) ? implode(',',$tags) : $tags;
+    // $selector = '//*[@class="newifcens"]/ul/li[3]/div/a/text()';
+    // $tags = selector::select($contentHtml, $selector);
+    $token['tags'] = '';
     
     //介绍
-    $selector = '//*[@class="newlafcen"]';
+    $selector = '//*[@id="soft-info"]';
     $introduction = trim( strip_html_tags( 'h1', 'h1', selector::select($contentHtml, $selector) ) ); 
     $introduction = str_replace( '/>', ' />', $introduction );
-    // $introduction = str_replace( ['ZI7下载站','11773下载站'], '', $introduction );
+    // $introduction = str_replace( ['ZI7下载站','2265下载站'], '', $introduction );
     preg_match_all( '/<img.*?src=[\"|\']?(.*?)[\"|\']?\s.*?>/i', $introduction, $matches );
     if( $matches[1] ){
         foreach ($matches[1] as $img) {
@@ -437,6 +366,7 @@ function saveInfo( $contentHtml, $id='', $type='1' ){    # type 1游戏 2软件
     //应用平台
     $token['application'] = 'android';
     $token['downloads'] = '';
+
     return $token;
 }
 
@@ -445,11 +375,11 @@ function saveInfo( $contentHtml, $id='', $type='1' ){    # type 1游戏 2软件
 function getNews( $base_url, $redis, $limit=0, $kill=100, $page_url=""){
 
 
-     $newNav =    $redis->get('11773_news_nav');
+     $newNav =    $redis->get('2265_news_nav');
      $newNav = $newNav ? json_decode($newNav, true) : [];
     foreach ($newNav as $cate) {
-        $start_url = explode('/', $cate['url'])[3];
-        getOneNews( $base_url, $redis, $limit=0, $kill=100, '/'.$start_url.'/');
+        $start_url = explode('/', $cate['url'])[3].'/'.explode('/', $cate['url'])[4];
+        getOneNews( $base_url, $redis, $limit=0, $kill=100, '/'.$start_url);
     }
 }
 
@@ -460,12 +390,13 @@ function getOneNews( $base_url, $redis, $limit=0, $kill=100, $page_url=""){
     }
     $url = $base_url.$page_url;
     $html = requests::get($url);
+
     //  下一页url
-    $selector = '//*[@id="pager"]/div/a[last()-1]/@href';
+    $selector = '//*[@class="tsp_next"]/@href';
     $next_pag = selector::select($html, $selector);
     
     //页面列表
-    $selector = '//*[@class="newmnblt"]/ul/li/a[1]/@href';
+    $selector = '//*[@id="wzl"]/ul/li/b/a[1]/@href';
     $infos = selector::select($html, $selector);
     if( is_array( $infos ) ){
         $n = count( $infos );
@@ -475,6 +406,7 @@ function getOneNews( $base_url, $redis, $limit=0, $kill=100, $page_url=""){
     }else{
         $infos = [$infos];
     }
+
     $data = [];
     foreach ($infos as $g) {
         $sleep = rand(2000000,8000000);
@@ -487,7 +419,7 @@ function getOneNews( $base_url, $redis, $limit=0, $kill=100, $page_url=""){
             usleep($sleep);
             continue;
         }
-        if( $redis->sismember( "11773_news", $numeric ) ){
+        if( $redis->sismember( "2265_news", $numeric ) ){
             var_dump($numeric.'站点已经采集,跳过');
             usleep($sleep);
             continue;
@@ -509,7 +441,7 @@ function getOneNews( $base_url, $redis, $limit=0, $kill=100, $page_url=""){
             $respone = json_decode($res, true);
             if( $respone['code'] === 0 ){
                 var_dump( $g."数据发送完毕" );
-                $redis->sadd('11773_news', $numeric);
+                $redis->sadd('2265_news', $numeric);
             }else{
                 var_dump( $res );
             }
@@ -523,10 +455,10 @@ function getOneNews( $base_url, $redis, $limit=0, $kill=100, $page_url=""){
 function saveNews( $contentHtml ){
     $token = array();
     //标题
-    $selector = '//*[@class="newlttop"]/h1[1]';
+    $selector = '//*[@id="ncont"]/dt/h1';
     $token['title'] = selector::select($contentHtml, $selector);
     //介绍
-    $selector = '//*[@id="content"]';
+    $selector = '//*[@id="ncont"]/dd';
     $content = strip_html_tags( 'p class="dvideo"', 'p', selector::select($contentHtml, $selector) ); 
     $content = htmlspecialchars_decode($content);
     $content = preg_replace("/<a[^>]*>(.*?)<\/a>/is", "$1", $content);
@@ -547,14 +479,14 @@ function saveNews( $contentHtml ){
         $token['logo'] = '';
     }
     //类型
-    $selector = '//*[@class="newnavwz newwidths"]/a[2]';
+    $selector = '//*[@id="fnav"]/a[2]';
     $token['category'] = selector::select($contentHtml, $selector);
     //导航
     // $selector = '//*[@class="nav-position mb10"]/a[2]';
     // $token['navigation'] = selector::select($contentHtml, $selector);
     $token['navigation'] = "资讯/".$token['category']; 
     // //更新时间
-    $selector = '//*[@class="newlttop"]/@data-time';
+    $selector = '//*[@id="ncont"]/dt/p/span[1]';
     $temp = selector::select($contentHtml, $selector);
     if (is_array($temp)) {
         $temp = $temp[0];
@@ -562,18 +494,19 @@ function saveNews( $contentHtml ){
     $temp = str_replace( '编辑：', '', str_replace( '时间：', '', $temp ));
     $token['updateTime'] = trim($temp);
     //来源
-    $token['source'] = "11773";
+    $token['source'] = "2265";
     //平台名称
-    $token['platform'] = '11773手游网';
+    $token['platform'] = '2265安卓网';
     //seo关键字
-    $selector = '/html/head/meta[2]/@content';
+    $selector = '//meta[@name="keywords"]/@content';
     $token['seoKey'] = mb_substr( selector::select($contentHtml, $selector), 0, 250);
     //seo标题
     $selector = '/html/head/title';
-    $token['seoName'] = str_replace( '11773手游网', '', selector::select($contentHtml, $selector) ) ;
+    $token['seoName'] = str_replace( '2265安卓网', '', selector::select($contentHtml, $selector) ) ;
     //seo描述
-    $selector = '/html/head/meta[3]/@content';
-    $token['seoDescription'] = str_replace( '11773手游网', '', mb_substr(selector::select($contentHtml, $selector), 0, 250) );
+    $selector = '//meta[@name="description"]/@content';
+    $token['seoDescription'] = str_replace( '2265安卓网', '', mb_substr(selector::select($contentHtml, $selector), 0, 250) );
+
     return $token;
 }
 
