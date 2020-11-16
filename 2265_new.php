@@ -9,6 +9,14 @@ use phpspider\core\selector;
 $redis = new Redis();
 $redis->connect('127.0.0.1', 6379);
 if( $argv[1] == 'clear' ){
+    $log_path = './log';
+    $logs = scandir($log_path);
+    foreach ($logs as $log) {
+        $file = $log_path."/".$log;
+        if (is_file($file)) {
+             unlink($file);
+        }
+    }
     $redis->del("2265");                 //清空
     $redis->del('2265_navi');     //查看全部
     // $set = $redis->smembers('2265');     //查看全部
@@ -188,7 +196,7 @@ function getOnePage( $base_url, $redis, $second=3 ,$page_url=""){
             $second--;
             var_dump('游戏列表获取失败,再来');
             sleep(4);
-            getGame( $base_url, $redis, $second, $page_url);
+            getOnePage( $base_url, $redis, $second, $page_url);
             return;
         }
     }else{
@@ -245,7 +253,7 @@ function getOnePage( $base_url, $redis, $second=3 ,$page_url=""){
 
     var_dump( date('Y-m-d H:i:s')." 游戏列表提交完成" );
     if ($next_pag) {
-       $max = getGame( $base_url, $redis, $second, $next_pag);
+       $max = getOnePage( $base_url, $redis, $second, $next_pag);
     }
     return $max;
     
